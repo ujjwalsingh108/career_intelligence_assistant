@@ -1,0 +1,268 @@
+:root {
+    --ink: #192126;
+    --muted: #5e666d;
+    --paper: #f5f2ea;
+    --card: rgba(255, 255, 255, 0.82);
+    --brand: #0f766e;
+    --brand-deep: #0b4f4a;
+    --accent: #d97706;
+    --border: rgba(25, 33, 38, 0.12);
+    --shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Space Grotesk", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.2), transparent 24%),
+        linear-gradient(180deg, #f8f5ef 0%, #ece7db 100%);
+    min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+.page-shell {
+    width: min(1180px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 2rem 0 3rem;
+}
+
+.hero-card,
+.panel,
+.message {
+    background: var(--card);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    border-radius: 24px;
+}
+
+.hero-card {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr;
+    gap: 1.5rem;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.78rem;
+    color: var(--brand);
+    margin: 0 0 0.5rem;
+}
+
+h1,
+h2 {
+    margin: 0;
+}
+
+h1 {
+    font-family: "Instrument Serif", serif;
+    font-size: clamp(2.7rem, 5vw, 4.6rem);
+    line-height: 0.95;
+    margin-bottom: 0.9rem;
+}
+
+h2 {
+    font-size: 1.05rem;
+    margin-bottom: 1rem;
+}
+
+.hero-copy,
+.job-card p,
+.empty-state,
+.stat-label {
+    color: var(--muted);
+}
+
+.hero-stats {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+}
+
+.hero-stats > div {
+    padding: 1rem 1.1rem;
+    background: rgba(255, 255, 255, 0.62);
+    border-radius: 18px;
+}
+
+.stat-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+}
+
+.message {
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.message.error {
+    border-color: rgba(185, 28, 28, 0.28);
+    background: rgba(254, 226, 226, 0.78);
+}
+
+.message.success {
+    border-color: rgba(15, 118, 110, 0.24);
+}
+
+.grid-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.panel {
+    padding: 1.4rem;
+}
+
+.stack-form {
+    display: grid;
+    gap: 0.9rem;
+}
+
+input[type="text"],
+input[type="file"],
+textarea,
+select {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid rgba(25, 33, 38, 0.15);
+    background: rgba(255, 255, 255, 0.88);
+    padding: 0.9rem 1rem;
+}
+
+textarea {
+    resize: vertical;
+}
+
+button {
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+    color: white;
+    padding: 0.8rem 1.2rem;
+    cursor: pointer;
+    justify-self: start;
+}
+
+.section-header,
+.job-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.job-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.job-card {
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(25, 33, 38, 0.1);
+}
+
+.job-card-active {
+    border-color: rgba(15, 118, 110, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.16);
+}
+
+.output-panel pre,
+.message pre {
+    white-space: pre-wrap;
+    margin: 0;
+    line-height: 1.55;
+}
+
+.scorecard-panel h3 {
+    margin-top: 1.15rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.92rem;
+}
+
+.scorecard-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.score-pill {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(217, 119, 6, 0.16));
+    border: 1px solid rgba(15, 118, 110, 0.2);
+    border-radius: 18px;
+    padding: 1rem;
+}
+
+.score-pill strong {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.scorecard-grid ul {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+
+.chip-row {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.evidence-chip {
+    border: 1px solid rgba(25, 33, 38, 0.15);
+    border-radius: 16px;
+    padding: 0.85rem;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.evidence-chip header {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: var(--brand-deep);
+}
+
+.evidence-chip p {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.evidence-chip small {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: var(--brand);
+}
+
+@media (max-width: 860px) {
+    .hero-card,
+    .grid-layout,
+    .scorecard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page-shell {
+        width: min(100% - 1rem, 1180px);
+        padding-top: 1rem;
+    }
+}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="page-shell">
+    <section class="hero-card">
+        <div>
+            <p class="eyebrow">Groq + FastAPI + pgvector</p>
+            <h1>Career Intelligence Assistant</h1>
+            <p class="hero-copy">
+                Upload one resume and multiple job descriptions, compare fit, surface skill gaps, and ask evidence-backed questions.
+            </p>
+        </div>
+        <div class="hero-stats">
+            <div>
+                <span class="stat-label">Resume</span>
+                <strong>{{ resume.filename if resume else "Not uploaded" }}</strong>
+            </div>
+            <div>
+                <span class="stat-label">Jobs indexed</span>
+                <strong>{{ jobs|length }}</strong>
+            </div>
+        </div>
+    </section>
+
+    {% if error %}
+    <section class="message error">{{ error }}</section>
+    {% endif %}
+
+    {% if answer and not analysis %}
+    <section class="message success"><pre>{{ answer }}</pre></section>
+    {% endif %}
+
+    <section class="grid-layout">
+        <article class="panel">
+            <h2>1. Upload Resume</h2>
+            <form action="/resume/upload" method="post" enctype="multipart/form-data" class="stack-form">
+                <input type="file" name="resume_file" accept=".pdf,.docx,.txt,.md" required>
+                <button type="submit">Index Resume</button>
+            </form>
+        </article>
+
+        <article class="panel">
+            <h2>2. Add Job Descriptions</h2>
+            <form action="/jobs/upload" method="post" enctype="multipart/form-data" class="stack-form">
+                <input type="text" name="title" placeholder="Optional title for pasted job description">
+                <textarea name="pasted_job_description" rows="7" placeholder="Paste a job description here"></textarea>
+                <input type="file" name="job_files" accept=".pdf,.docx,.txt,.md" multiple>
+                <button type="submit">Index Job Postings</button>
+            </form>
+        </article>
+    </section>
+
+    <section class="grid-layout lower-grid">
+        <article class="panel">
+            <div class="section-header">
+                <h2>3. Job Analysis</h2>
+                <span>{{ jobs|length }} roles</span>
+            </div>
+            {% if jobs %}
+            <div class="job-list">
+                {% for job in jobs %}
+                <div class="job-card {% if selected_job and selected_job.id == job.id %}job-card-active{% endif %}">
+                    <div>
+                        <strong>{{ job.title }}</strong>
+                        <p>{{ job.source_name }}</p>
+                    </div>
+                    <form action="/jobs/{{ job.id }}/analyze" method="post">
+                        <button type="submit">Analyze</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">Index job descriptions to compare them against the resume.</p>
+            {% endif %}
+        </article>
+
+        <article class="panel">
+            <h2>4. Ask Questions</h2>
+            <form action="/ask" method="post" class="stack-form">
+                <textarea name="question" rows="5" placeholder="What skills are missing for the backend engineer role?" required></textarea>
+                <select name="job_id">
+                    <option value="">No job selected</option>
+                    {% for job in jobs %}
+                    <option value="{{ job.id }}" {% if selected_job and selected_job.id == job.id %}selected{% endif %}>{{ job.title }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Ask</button>
+            </form>
+        </article>
+    </section>
+
+    {% if analysis %}
+    <section class="panel output-panel">
+        <div class="section-header">
+            <h2>Analysis Output</h2>
+            {% if selected_job %}<span>{{ selected_job.title }}</span>{% endif %}
+        </div>
+        <pre>{{ analysis }}</pre>
+    </section>
+    {% endif %}
+
+    {% if scorecard %}
+    <section class="panel scorecard-panel">
+        <div class="section-header">
+            <h2>Premium Fit Scorecard</h2>
+            <span>Confidence {{ scorecard.confidence }}%</span>
+        </div>
+        <div class="scorecard-grid">
+            <div class="score-pill">
+                <span class="stat-label">Fit Score</span>
+                <strong>{{ scorecard.fit_score }}%</strong>
+            </div>
+            <div>
+                <h3>Matched Must-Haves</h3>
+                <ul>
+                    {% for item in scorecard.matched_required %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>None identified</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Must-Have Gaps</h3>
+                <ul>
+                    {% for item in scorecard.missing_required %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>No critical gaps detected</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <h3>Evidence Chips</h3>
+        <div class="chip-row">
+            {% for chip in scorecard.evidence_chips %}
+            <article class="evidence-chip">
+                <header>{{ chip.id }} | {{ chip.source }}</header>
+                <p>{{ chip.text }}</p>
+                <small>score {{ chip.score }}</small>
+            </article>
+            {% else %}
+            <p class="empty-state">No evidence chips available.</p>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if structured_profile %}
+    <section class="panel output-panel">
+        <div class="section-header">
+            <h2>Structured Extraction</h2>
+            <span>Skills, domains, years, must-haves</span>
+        </div>
+        <pre>{{ structured_profile }}</pre>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}
