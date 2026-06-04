@@ -126,6 +126,9 @@ async def upload_jobs(
             created += 1
 
         for upload in job_files:
+            # Browsers submit an empty multipart part when no file is chosen; skip it.
+            if not (upload.filename or "").strip():
+                continue
             filename, text = await extract_text(upload)
             inferred_title = Path(filename).stem.replace("_", " ").replace("-", " ").strip().title()
             add_job_posting(db, title=inferred_title or filename, source_name=filename, raw_text=text)
