@@ -1,183 +1,196 @@
 # Career Intelligence Assistant
 
-A full-stack Python web application for comparing a resume against multiple job descriptions, asking grounded career-fit questions, and generating evidence-backed guidance using Groq, PostgreSQL, and pgvector.
+This is a full-stack Python app that compares one resume against multiple job descriptions, answers role-fit questions, and gives evidence-backed suggestions.
 
-## Why this project
+The goal of this project was not to build a flashy demo that breaks easily, but a practical system I could deploy on a real server and iterate on quickly.
 
-This project targets the assignment's "Career Intelligence Assistant" option with a scope that is product-relevant, deployable on a DigitalOcean droplet, and still rich enough to demonstrate real engineering decisions around retrieval, chunking, context management, quality controls, and observability.
+## Live Deployment
 
-## Stack
+The app is currently live at:
 
-- Backend and UI: FastAPI + Jinja templates
+- https://career.insurewise.sbs
+
+## What Is Implemented Today
+
+- Resume upload: PDF, DOCX, TXT, MD
+- Job input: upload files and/or paste description text
+- RAG pipeline with PostgreSQL + pgvector
+- Hybrid retrieval (vector + lexical) with reranking
+- LangGraph orchestration for analysis flow
+- Structured extraction for:
+	- skills
+	- years of experience
+	- domains
+	- must-have requirements
+- Deterministic fit scorecard with evidence chips and confidence
+- Conversational Q&A tied to selected job context
+- Request-level observability:
+	- request ID
+	- model name
+	- token usage
+	- latency
+	- estimated cost
+- Regression harness with 20 curated scorecard cases
+
+## Tech Stack
+
+- Backend: FastAPI
+- UI: Jinja templates + custom CSS
 - LLM provider: Groq
-- Primary analysis model: `llama-3.3-70b-versatile`
-- Fast chat model: `llama-3.1-8b-instant`
-- Embeddings: local `BAAI/bge-small-en-v1.5` via FastEmbed
-- Orchestration: LangGraph (analysis flow)
+- Analysis model: `llama-3.3-70b-versatile`
+- Chat model: `llama-3.1-8b-instant`
+- Embeddings: Hugging Face model `BAAI/bge-small-en-v1.5` via FastEmbed
+- Orchestration: LangGraph
 - Database: PostgreSQL 16 + pgvector
 - ORM: SQLAlchemy 2.x
-- File parsing: `pypdf` and `python-docx`
-- Containerization: Docker + docker compose
+- Parsing: `pypdf`, `python-docx`
+- Runtime: Docker Compose on DigitalOcean
 
-## Features
-
-- Upload a single resume in PDF, DOCX, TXT, or Markdown
-- Upload multiple job descriptions as files or pasted text
-- Chunk and embed both resumes and job descriptions into pgvector
-- Run similarity retrieval over the selected job and the indexed resume
-- Hybrid retrieval with lexical+vector fusion and reranking
-- Generate grounded fit analysis using Groq
-- Ask follow-up questions with evidence-backed responses
-- Structured extraction for skills, years, domains, and must-haves
-- Per-job fit scorecards with evidence chips and confidence scoring
-- Request-level observability with token/cost logging
-
-## Architecture Overview
+## Architecture
 
 ```mermaid
 flowchart LR
-	A[Resume Upload] --> B[Text Extraction]
-	C[Job Description Upload] --> B
-	B --> D[Chunking]
-	D --> E[Local HuggingFace Embeddings via FastEmbed]
-	E --> F[(PostgreSQL + pgvector)]
-	G[Analyze Action] --> H[LangGraph]
-	H --> I[Hybrid Retrieval + Rerank]
-	F --> I
-	I --> J[Structured Extraction]
-	J --> K[Deterministic Scorecard]
-	K --> L[Groq Analysis Report]
-	L --> M[FastAPI UI Response]
+		A[Resume Upload] --> B[Text Extraction]
+		C[Job Description Upload/Paste] --> B
+		B --> D[Chunking]
+		D --> E[HF Embeddings via FastEmbed]
+		E --> F[(PostgreSQL + pgvector)]
+		G[Analyze] --> H[LangGraph]
+		H --> I[Hybrid Retrieval + Rerank]
+		F --> I
+		I --> J[Structured Extraction]
+		J --> K[Deterministic Scorecard]
+		K --> L[Groq Report Generation]
+		L --> M[UI Response]
 ```
 
-## Quick Start
+## Local Setup
 
-### Local Python setup
-
-1. Create and activate a virtual environment.
-2. Install the project.
-3. Start PostgreSQL with pgvector.
-4. Copy `.env.example` to `.env` and set `GROQ_API_KEY`.
-5. Run the app.
+### Option A: Python (dev mode)
 
 ```powershell
-python -m venv .venv
+py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .[dev]
 Copy-Item .env.example .env
 uvicorn app.main:app --reload
 ```
 
-### Docker setup
+Open http://localhost:8000
+
+### Option B: Docker
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build
 ```
 
-Open http://localhost:8000
+Open http://localhost:18000
 
-## Regression Harness
+## Environment Variables
 
-Run deterministic scorecard regression checks with 20 curated cases:
+- `DATABASE_URL`
+- `GROQ_API_KEY`
+- `GROQ_ANALYSIS_MODEL`
+- `GROQ_CHAT_MODEL`
+- `EMBEDDING_MODEL`
+- `EMBEDDING_DIMENSIONS`
+- `RETRIEVAL_CANDIDATE_POOL`
+- `RERANK_TOP_K`
+- `HYBRID_VECTOR_WEIGHT`
+- `HYBRID_LEXICAL_WEIGHT`
+
+## Why These Choices
+
+### LLMs
+
+I split model usage intentionally:
+
+- `llama-3.3-70b-versatile` for deeper analysis reports
+- `llama-3.1-8b-instant` for faster interactive chat
+
+This keeps report quality high without making every interaction expensive.
+
+### Embeddings
+
+I stayed with open-source Hugging Face embeddings (`BAAI/bge-small-en-v1.5`) through FastEmbed.
+
+Why:
+
+- good quality for this use case
+- predictable cost profile
+- no second paid embedding dependency
+
+### Vector Store
+
+I used PostgreSQL + pgvector because it is straightforward to run on a droplet, and lets me keep relational data and vector search in one place.
+
+### Orchestration
+
+I brought in LangGraph only for analysis flow, not the entire app, to keep complexity under control.
+
+## Quality Controls
+
+- Unsupported/empty files are rejected
+- Empty file input parts are ignored when user submits pasted job text
+- Prompts enforce evidence-grounded responses
+- Output includes explicit missing-evidence behavior
+- Regression checks for scorecard behavior (20 cases)
+
+## Evaluation Harness
+
+Run the deterministic scorecard regression suite:
 
 ```powershell
 python evals/run_regression.py
 ```
 
-## Environment Variables
+## Observability
 
-- `DATABASE_URL`: PostgreSQL connection string using psycopg
-- `GROQ_API_KEY`: required for answer generation and analysis
-- `GROQ_ANALYSIS_MODEL`: defaults to `llama-3.3-70b-versatile`
-- `GROQ_CHAT_MODEL`: defaults to `llama-3.1-8b-instant`
-- `EMBEDDING_MODEL`: defaults to `BAAI/bge-small-en-v1.5`
-- `EMBEDDING_DIMENSIONS`: defaults to `384`
+The app logs per-request LLM telemetry to `llm_request_logs`, including:
 
-## RAG and LLM Decisions
+- request ID
+- route
+- model used
+- prompt/completion/total tokens
+- estimated USD cost
+- latency
 
-### LLM choice
+This made it much easier to debug model behavior and watch spend while iterating.
 
-Groq is used for inference because it gives low-latency hosted reasoning with a simple deployment story for a droplet-hosted app. I split the workload between:
+## Production Notes (DigitalOcean)
 
-- `llama-3.3-70b-versatile` for deep fit analysis
-- `llama-3.1-8b-instant` for faster interactive follow-up questions
+Current deployment includes:
 
-### Embedding choice
+- Dockerized app + pgvector database
+- Nginx reverse proxy
+- Let's Encrypt SSL
+- dedicated subdomain routing
 
-Groq is not used for embeddings here. Instead, embeddings are generated locally with FastEmbed and `BAAI/bge-small-en-v1.5` so the retrieval stack remains deterministic, cheap to run, and independent of a second hosted dependency.
+What I would add next for production-hardening:
 
-### Vector database choice
+1. user auth and data isolation
+2. background jobs for heavy ingestion
+3. object storage for uploaded files
+4. dashboard for retrieval quality and spend trends
+5. CI pipeline with linting, tests, and image checks
 
-PostgreSQL plus pgvector is a pragmatic choice for this assignment because:
+## Engineering Trade-offs
 
-- it is easy to run locally and on a DigitalOcean droplet
-- structured entities and vector retrieval can live in one system
-- operational complexity is lower than running a separate vector database
+What I optimized for:
 
-### Chunking and retrieval
+- clear architecture
+- deployability
+- explainable retrieval flow
 
-- Chunking is paragraph-aware first, then falls back to sliding windows for very long sections.
-- Retrieval uses hybrid scoring (vector similarity plus lexical overlap), then reranks top candidates.
-- Context is capped to a small number of top chunks to control prompt size.
+What I intentionally did not over-engineer yet:
 
-### Prompt and context management
+- multi-tenant RBAC
+- async task queue
+- exhaustive integration test matrix
 
-- Prompts ask the model to ground every statement in provided evidence.
-- Missing evidence is treated explicitly instead of being hallucinated away.
-- The app keeps analysis and chat flows separate so each can use a tighter prompt and a more suitable model.
-- Analysis uses LangGraph to orchestrate retrieval, structured extraction, scorecard computation, and report writing.
+## AI Tooling: How I Used It
 
-### Structured extraction and scorecards
+I used AI coding tools for speed on boilerplate and implementation scaffolding, but validated all key design choices manually (retrieval design, deployment decisions, guardrails, and data flow).
 
-- Extracts normalized fields for `resume_skills`, `resume_years_experience`, `resume_domains`, `job_skills`, `job_must_have`, `job_years_required`, and `job_domains`.
-- Generates deterministic fit scorecards with confidence and evidence chips.
-- Makes trade-offs explicit with matched must-haves and missing must-haves.
-
-### Guardrails and quality controls
-
-- Unsupported or empty files are rejected at upload time.
-- The system instructs the LLM to avoid inventing missing skills or experience.
-- Answers are based on retrieved chunks and the raw job or resume text.
-
-### Observability
-
-The app now logs model-level request telemetry (request ID, model name, token usage, estimated cost, and latency) in `llm_request_logs`.
-
-For production, additionally add:
-
-- distributed tracing with OpenTelemetry and trace exports
-- dashboarding for retrieval quality, confidence drift, and spend per route
-- alerting on latency and model error rates
-
-## Productionizing for DigitalOcean
-
-For a successful DigitalOcean deployment, the MVP should be extended with the following:
-
-1. Run the app behind Nginx or Caddy with TLS.
-2. Put PostgreSQL on a managed database or isolate it in a private network.
-3. Store uploaded source files in Spaces or another object store instead of memory-only processing.
-4. Move ingestion into background jobs so large uploads do not block web requests.
-5. Add authentication and per-user document isolation.
-6. Add retries, rate limiting, audit logs, and request timeouts.
-7. Add structured evaluation cases for fit scoring and missing-skill detection.
-8. Add CI for tests, linting, and container build verification.
-
-## Engineering Standards Followed
-
-- Clear separation between config, data layer, services, and web routes
-- Container-friendly setup with explicit environment variables
-- Minimal but functional tests for service health
-- Small, explainable retrieval pipeline instead of hidden framework magic
-
-## What I would do next
-
-- Extract structured skills and experience timelines into first-class database tables
-- Add hybrid retrieval combining keyword and vector search
-- Add job ranking across all indexed roles from a single resume
-- Add evaluation fixtures and offline answer-quality scoring
-- Add async background jobs for parsing and embedding
-
-## How AI tools were used
-
-AI tools are useful for accelerating boilerplate, comparing library options, and drafting interface scaffolds. They should not be trusted for final architectural reasoning, deployment trade-offs, or README claims without verification. The implementation choices in this repo should be validated and adapted based on real test runs and the target droplet environment.
+In short: AI helped me move faster, but it did not replace engineering judgment.
