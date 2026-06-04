@@ -98,5 +98,63 @@
         <pre>{{ analysis }}</pre>
     </section>
     {% endif %}
+
+    {% if scorecard %}
+    <section class="panel scorecard-panel">
+        <div class="section-header">
+            <h2>Premium Fit Scorecard</h2>
+            <span>Confidence {{ scorecard.confidence }}%</span>
+        </div>
+        <div class="scorecard-grid">
+            <div class="score-pill">
+                <span class="stat-label">Fit Score</span>
+                <strong>{{ scorecard.fit_score }}%</strong>
+            </div>
+            <div>
+                <h3>Matched Must-Haves</h3>
+                <ul>
+                    {% for item in scorecard.matched_required %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>None identified</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Must-Have Gaps</h3>
+                <ul>
+                    {% for item in scorecard.missing_required %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>No critical gaps detected</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <h3>Evidence Chips</h3>
+        <div class="chip-row">
+            {% for chip in scorecard.evidence_chips %}
+            <article class="evidence-chip">
+                <header>{{ chip.id }} | {{ chip.source }}</header>
+                <p>{{ chip.text }}</p>
+                <small>score {{ chip.score }}</small>
+            </article>
+            {% else %}
+            <p class="empty-state">No evidence chips available.</p>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if structured_profile %}
+    <section class="panel output-panel">
+        <div class="section-header">
+            <h2>Structured Extraction</h2>
+            <span>Skills, domains, years, must-haves</span>
+        </div>
+        <pre>{{ structured_profile }}</pre>
+    </section>
+    {% endif %}
 </main>
 {% endblock %}

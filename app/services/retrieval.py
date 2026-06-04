@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import re
 
 from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
@@ -14,8 +15,35 @@ settings = get_settings()
 
 @dataclass
 class RetrievedChunk:
+    evidence_id: str
     document_label: str
     content: str
+    fused_score: float
+    vector_score: float
+    lexical_score: float
+
+
+def _tokenize(text: str) -> set[str]:
+    tokens = re.findall(r"[a-zA-Z0-9+#\.]{2,}", text.lower())
+    return set(tokens)
+
+
+def _lexical_score(query: str, content: str) -> float:
+    query_tokens = _tokenize(query)
+    content_tokens = _tokenize(content)
+    if not query_tokens or not content_tokens:
+        return 0.0
+    overlap = len(query_tokens & content_tokens)
+    return overlap / len(query_tokens)
+
+
+def _rerank_score(query: str, chunk: RetrievedChunk) -> float:
+    query_tokens = _tokenize(query)
+    content_tokens = _tokenize(chunk.content)
+    if not query_tokens:
+        return chunk.fused_score
+    coverage = len(query_tokens & content_tokens) / len(query_tokens)
+    return (chunk.fused_score * 0.85) + (coverage * 0.15)
 
 
 def replace_resume(session: Session, filename: str, raw_text: str) -> Resume:
@@ -87,14 +115,48 @@ def retrieve_relevant_chunks(session: Session, question: str, job_id: int | None
     if job_id is not None:
         filters.append(DocumentChunk.job_posting_id == job_id)
 
-    statement = (
-        select(DocumentChunk)
-        .where(or_(*filters))
-        .order_by(DocumentChunk.embedding.cosine_distance(embedding))
-        .limit(settings.max_context_chunks)
-    )
+    distance = DocumentChunk.embedding.cosine_distance(embedding).label("distance")
 
-    return [
-        RetrievedChunk(document_label=chunk.document_label, content=chunk.content)
-        for chunk in session.scalars(statement)
-    ]
+    statement = (
+        select(DocumentChunk, distance)
+        .where(or_(*filters))
+        .order_by(distance)
+        .limit(settings.retrieval_candidate_pool)
+    )
+    rows = list(session.execute(statement))
+
+    weighted: list[RetrievedChunk] = []
+    for row in rows:
+        chunk = row[0]
+        chunk_distance = float(row[1] or 1.0)
+        vector_score = max(0.0, 1.0 - min(chunk_distance, 2.0) / 2.0)
+        lexical_score = _lexical_score(question, chunk.content)
+        fused_score = (vector_score * settings.hybrid_vector_weight) + (lexical_score * settings.hybrid_lexical_weight)
+        weighted.append(
+            RetrievedChunk(
+                evidence_id="",
+                document_label=chunk.document_label,
+                content=chunk.content,
+                fused_score=fused_score,
+                vector_score=vector_score,
+                lexical_score=lexical_score,
+            )
+        )
+
+    weighted.sort(key=lambda item: item.fused_score, reverse=True)
+    reranked = sorted(weighted[: settings.rerank_top_k], key=lambda item: _rerank_score(question, item), reverse=True)
+    trimmed = reranked[: settings.max_context_chunks]
+
+    output: list[RetrievedChunk] = []
+    for index, chunk in enumerate(trimmed, start=1):
+        output.append(
+            RetrievedChunk(
+                evidence_id=f"E{index}",
+                document_label=chunk.document_label,
+                content=chunk.content,
+                fused_score=chunk.fused_score,
+                vector_score=chunk.vector_score,
+                lexical_score=chunk.lexical_score,
+            )
+        )
+    return output

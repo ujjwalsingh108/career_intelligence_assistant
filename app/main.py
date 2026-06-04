@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+from time import perf_counter
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,9 +11,11 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db, initialize_database
-from app.services.analysis import answer_user_question, build_job_summary
+from app.services.analysis import answer_user_question
+from app.services.analysis_graph import run_analysis_graph
 from app.services.documents import extract_text
 from app.services.groq_client import GroqService
+from app.services.observability import log_llm_completion
 from app.services.retrieval import add_job_posting, get_job, get_latest_resume, list_jobs, replace_resume, retrieve_relevant_chunks
 
 
@@ -30,12 +34,25 @@ app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
+@app.middleware("http")
+async def request_tracking_middleware(request: Request, call_next):
+    request_id = str(uuid4())
+    request.state.request_id = request_id
+    started_at = perf_counter()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Process-Time-Ms"] = str(round((perf_counter() - started_at) * 1000, 2))
+    return response
+
+
 def build_context(
     request: Request,
     db: Session,
     *,
     selected_job_id: int | None = None,
     analysis: str | None = None,
+    scorecard: dict | None = None,
+    structured_profile: dict | None = None,
     answer: str | None = None,
     error: str | None = None,
 ) -> dict:
@@ -48,6 +65,8 @@ def build_context(
         "jobs": jobs,
         "selected_job": selected_job,
         "analysis": analysis,
+        "scorecard": scorecard,
+        "structured_profile": structured_profile,
         "answer": answer,
         "error": error,
     }
@@ -55,7 +74,11 @@ def build_context(
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, job_id: int | None = None, db: Session = Depends(get_db)) -> HTMLResponse:
-    return templates.TemplateResponse("index.html", build_context(request, db, selected_job_id=job_id))
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context=build_context(request, db, selected_job_id=job_id),
+    )
 
 
 @app.post("/resume/upload", response_class=HTMLResponse)
@@ -68,13 +91,15 @@ async def upload_resume(
         filename, text = await extract_text(resume_file)
         replace_resume(db, filename, text)
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, answer="Resume indexed successfully."),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, answer="Resume indexed successfully."),
         )
     except HTTPException as exc:
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, error=exc.detail),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, error=exc.detail),
             status_code=exc.status_code,
         )
 
@@ -110,13 +135,15 @@ async def upload_jobs(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide a job description or at least one file.")
 
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, answer=f"Indexed {created} job posting(s)."),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, answer=f"Indexed {created} job posting(s)."),
         )
     except HTTPException as exc:
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, error=exc.detail),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, error=exc.detail),
             status_code=exc.status_code,
         )
 
@@ -130,16 +157,41 @@ def analyze_job(job_id: int, request: Request, db: Session = Depends(get_db)) ->
 
     try:
         groq_service = GroqService()
-        chunks = retrieve_relevant_chunks(db, f"Analyze fit between resume and {job.title}", job_id)
-        analysis = build_job_summary(groq_service, resume, job, chunks)
+        graph_output = run_analysis_graph(db, groq_service, resume, job)
+        analysis_completion = graph_output["analysis_completion"]
+        structured_completion = graph_output["structured_completion"]
+        request_id = getattr(request.state, "request_id", "unknown")
+        log_llm_completion(
+            db,
+            request_id=request_id,
+            route_name="/jobs/{job_id}/analyze:structured",
+            completion=structured_completion,
+            metadata={"job_id": job_id, "phase": "structured_extraction"},
+        )
+        log_llm_completion(
+            db,
+            request_id=request_id,
+            route_name="/jobs/{job_id}/analyze:report",
+            completion=analysis_completion,
+            metadata={"job_id": job_id, "phase": "analysis_report"},
+        )
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, selected_job_id=job_id, analysis=analysis),
+            request=request,
+            name="index.html",
+            context=build_context(
+                request,
+                db,
+                selected_job_id=job_id,
+                analysis=graph_output.get("analysis"),
+                scorecard=graph_output.get("scorecard"),
+                structured_profile=graph_output.get("structured_profile"),
+            ),
         )
     except RuntimeError as exc:
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, selected_job_id=job_id, error=str(exc)),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, selected_job_id=job_id, error=str(exc)),
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -154,8 +206,9 @@ def ask_question(
     resume = get_latest_resume(db)
     if not resume:
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, error="Upload a resume before asking questions."),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, error="Upload a resume before asking questions."),
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -164,15 +217,28 @@ def ask_question(
     try:
         groq_service = GroqService()
         chunks = retrieve_relevant_chunks(db, question, job_id)
-        answer = answer_user_question(groq_service, question, resume, job, chunks)
+        completion = answer_user_question(groq_service, question, resume, job, chunks)
+        request_id = getattr(request.state, "request_id", "unknown")
+        log_llm_completion(
+            db,
+            request_id=request_id,
+            route_name="/ask",
+            completion=completion,
+            metadata={
+                "job_id": job_id,
+                "evidence_ids": [chunk.evidence_id for chunk in chunks],
+            },
+        )
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, selected_job_id=job_id, answer=answer),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, selected_job_id=job_id, answer=completion.text),
         )
     except RuntimeError as exc:
         return templates.TemplateResponse(
-            "index.html",
-            build_context(request, db, selected_job_id=job_id, error=str(exc)),
+            request=request,
+            name="index.html",
+            context=build_context(request, db, selected_job_id=job_id, error=str(exc)),
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 

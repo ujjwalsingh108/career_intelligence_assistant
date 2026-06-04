@@ -13,6 +13,7 @@ This project targets the assignment's "Career Intelligence Assistant" option wit
 - Primary analysis model: `llama-3.3-70b-versatile`
 - Fast chat model: `llama-3.1-8b-instant`
 - Embeddings: local `BAAI/bge-small-en-v1.5` via FastEmbed
+- Orchestration: LangGraph (analysis flow)
 - Database: PostgreSQL 16 + pgvector
 - ORM: SQLAlchemy 2.x
 - File parsing: `pypdf` and `python-docx`
@@ -24,8 +25,12 @@ This project targets the assignment's "Career Intelligence Assistant" option wit
 - Upload multiple job descriptions as files or pasted text
 - Chunk and embed both resumes and job descriptions into pgvector
 - Run similarity retrieval over the selected job and the indexed resume
+- Hybrid retrieval with lexical+vector fusion and reranking
 - Generate grounded fit analysis using Groq
 - Ask follow-up questions with evidence-backed responses
+- Structured extraction for skills, years, domains, and must-haves
+- Per-job fit scorecards with evidence chips and confidence scoring
+- Request-level observability with token/cost logging
 
 ## Architecture Overview
 
@@ -34,13 +39,15 @@ flowchart LR
 	A[Resume Upload] --> B[Text Extraction]
 	C[Job Description Upload] --> B
 	B --> D[Chunking]
-	D --> E[Local Embeddings via FastEmbed]
+	D --> E[Local HuggingFace Embeddings via FastEmbed]
 	E --> F[(PostgreSQL + pgvector)]
-	G[User Question or Analyze Action] --> H[Similarity Retrieval]
-	F --> H
-	H --> I[Prompt Builder]
-	I --> J[Groq LLM]
-	J --> K[FastAPI UI Response]
+	G[Analyze Action] --> H[LangGraph]
+	H --> I[Hybrid Retrieval + Rerank]
+	F --> I
+	I --> J[Structured Extraction]
+	J --> K[Deterministic Scorecard]
+	K --> L[Groq Analysis Report]
+	L --> M[FastAPI UI Response]
 ```
 
 ## Quick Start
@@ -69,6 +76,14 @@ docker compose up --build
 ```
 
 Open http://localhost:8000
+
+## Regression Harness
+
+Run deterministic scorecard regression checks with 20 curated cases:
+
+```powershell
+python evals/run_regression.py
+```
 
 ## Environment Variables
 
@@ -103,7 +118,7 @@ PostgreSQL plus pgvector is a pragmatic choice for this assignment because:
 ### Chunking and retrieval
 
 - Chunking is paragraph-aware first, then falls back to sliding windows for very long sections.
-- Retrieval is similarity-based against the selected job plus the indexed resume.
+- Retrieval uses hybrid scoring (vector similarity plus lexical overlap), then reranks top candidates.
 - Context is capped to a small number of top chunks to control prompt size.
 
 ### Prompt and context management
@@ -111,6 +126,13 @@ PostgreSQL plus pgvector is a pragmatic choice for this assignment because:
 - Prompts ask the model to ground every statement in provided evidence.
 - Missing evidence is treated explicitly instead of being hallucinated away.
 - The app keeps analysis and chat flows separate so each can use a tighter prompt and a more suitable model.
+- Analysis uses LangGraph to orchestrate retrieval, structured extraction, scorecard computation, and report writing.
+
+### Structured extraction and scorecards
+
+- Extracts normalized fields for `resume_skills`, `resume_years_experience`, `resume_domains`, `job_skills`, `job_must_have`, `job_years_required`, and `job_domains`.
+- Generates deterministic fit scorecards with confidence and evidence chips.
+- Makes trade-offs explicit with matched must-haves and missing must-haves.
 
 ### Guardrails and quality controls
 
@@ -120,12 +142,13 @@ PostgreSQL plus pgvector is a pragmatic choice for this assignment because:
 
 ### Observability
 
-For a production version, add:
+The app now logs model-level request telemetry (request ID, model name, token usage, estimated cost, and latency) in `llm_request_logs`.
 
-- request logging with correlation IDs
-- retrieval metrics such as hit distribution and chunk distance
-- prompt and response traces in Langfuse or OpenTelemetry
-- latency dashboards and Groq error rate tracking
+For production, additionally add:
+
+- distributed tracing with OpenTelemetry and trace exports
+- dashboarding for retrieval quality, confidence drift, and spend per route
+- alerting on latency and model error rates
 
 ## Productionizing for DigitalOcean
 

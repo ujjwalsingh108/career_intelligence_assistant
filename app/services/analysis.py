@@ -1,12 +1,15 @@
 from app.models import JobPosting, Resume
-from app.services.groq_client import GroqService
+from app.services.groq_client import GroqService, LLMCompletion
 from app.services.retrieval import RetrievedChunk
 
 
 def _format_context(chunks: list[RetrievedChunk]) -> str:
     if not chunks:
         return "No retrieval context available."
-    return "\n\n".join(f"[{chunk.document_label}]\n{chunk.content}" for chunk in chunks)
+    return "\n\n".join(
+        f"[{chunk.evidence_id} | {chunk.document_label} | score={chunk.fused_score:.3f}]\n{chunk.content}"
+        for chunk in chunks
+    )
 
 
 def build_job_summary(
@@ -14,7 +17,7 @@ def build_job_summary(
     resume: Resume,
     job: JobPosting,
     chunks: list[RetrievedChunk],
-) -> str:
+) -> LLMCompletion:
     prompt = f"""
 Resume filename: {resume.filename}
 Job title: {job.title}
@@ -47,7 +50,7 @@ def answer_user_question(
     resume: Resume,
     job: JobPosting | None,
     chunks: list[RetrievedChunk],
-) -> str:
+) -> LLMCompletion:
     job_header = f"Job title: {job.title}\nJob description:\n{job.raw_text}" if job else "No job selected."
     prompt = f"""
 Question: {question}

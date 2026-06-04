@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: career
       POSTGRES_PASSWORD: career
     ports:
-      - "5432:5432"
+      - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -22,7 +22,7 @@ services:
     depends_on:
       - postgres
     ports:
-      - "8000:8000"
+      - "18000:8000"
 
 volumes:
   postgres_data:

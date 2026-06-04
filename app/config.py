@@ -14,6 +14,14 @@ class Settings(BaseSettings):
     chunk_size: int = 900
     chunk_overlap: int = 180
     max_context_chunks: int = 6
+    retrieval_candidate_pool: int = 30
+    rerank_top_k: int = 10
+    hybrid_vector_weight: float = 0.72
+    hybrid_lexical_weight: float = 0.28
+    groq_analysis_input_cost_per_million: float = 0.59
+    groq_analysis_output_cost_per_million: float = 0.79
+    groq_chat_input_cost_per_million: float = 0.05
+    groq_chat_output_cost_per_million: float = 0.08
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
