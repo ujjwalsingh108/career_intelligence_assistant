@@ -64,7 +64,7 @@ def _analysis_node(state: AnalysisState) -> AnalysisState:
         for chunk in chunks
     )
     prompt = f"""
-You are producing a premium career-fit report grounded in provided evidence.
+Write a career-fit report using only the evidence below.
 
 Resume filename: {resume.filename}
 Job title: {job.title}
@@ -73,7 +73,7 @@ Job source: {job.source_name}
 Structured extraction JSON:
 {structured}
 
-Deterministic scorecard JSON:
+Scorecard JSON:
 {scorecard}
 
 Evidence context:
@@ -88,8 +88,8 @@ Write sections:
 6. Evidence citations (use evidence IDs like E1, E2)
 
 Rules:
-- Do not invent evidence.
-- If a claim is uncertain, explicitly mark it as uncertain.
+- Do not make claims that are not supported by the evidence.
+- If the evidence is incomplete, say so clearly.
 """.strip()
 
     completion = groq_service.complete(prompt=prompt, fast=False)

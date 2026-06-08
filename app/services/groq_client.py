@@ -45,8 +45,8 @@ class GroqService:
                 {
                     "role": "system",
                     "content": (
-                        "You are a careful career intelligence assistant. Ground every conclusion in the provided "
-                        "resume and job description evidence. If evidence is missing, say so explicitly."
+                        "Use the provided resume, job description, and retrieved evidence as the source of truth. "
+                        "If something is not supported, say that the evidence is missing."
                     ),
                 },
                 {"role": "user", "content": prompt},

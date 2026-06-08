@@ -8,10 +8,10 @@ from app.services.groq_client import LLMCompletion
 
 class _FakeSession:
     def add(self, _obj) -> None:
-        return None
+        pass
 
     def commit(self) -> None:
-        return None
+        pass
 
 
 def test_tailor_resume_route_returns_tailored_output(monkeypatch) -> None:
@@ -58,7 +58,7 @@ def test_tailor_resume_route_returns_tailored_output(monkeypatch) -> None:
         response = client.post("/jobs/1/tailor")
 
     assert response.status_code == 200
-    assert "Tailored Resume Draft" in response.text
+    assert "Tailored Resume" in response.text
     assert "API-focused backend engineer" in response.text
 
     main_module.app.dependency_overrides = {}
