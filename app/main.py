@@ -17,6 +17,7 @@ from app.services.documents import extract_text
 from app.services.groq_client import GroqService
 from app.services.observability import log_llm_completion
 from app.services.retrieval import add_job_posting, get_job, get_latest_resume, list_jobs, replace_resume, retrieve_relevant_chunks
+from app.services.tailoring import generate_tailored_resume
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -53,6 +54,7 @@ def build_context(
     analysis: str | None = None,
     scorecard: dict | None = None,
     structured_profile: dict | None = None,
+    tailored_resume: str | None = None,
     answer: str | None = None,
     error: str | None = None,
 ) -> dict:
@@ -67,6 +69,7 @@ def build_context(
         "analysis": analysis,
         "scorecard": scorecard,
         "structured_profile": structured_profile,
+        "tailored_resume": tailored_resume,
         "answer": answer,
         "error": error,
     }
@@ -188,6 +191,58 @@ def analyze_job(job_id: int, request: Request, db: Session = Depends(get_db)) ->
                 analysis=graph_output.get("analysis"),
                 scorecard=graph_output.get("scorecard"),
                 structured_profile=graph_output.get("structured_profile"),
+            ),
+        )
+    except RuntimeError as exc:
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context=build_context(request, db, selected_job_id=job_id, error=str(exc)),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+@app.post("/jobs/{job_id}/tailor", response_class=HTMLResponse)
+def tailor_resume(job_id: int, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    resume = get_latest_resume(db)
+    job = get_job(db, job_id)
+    if not resume or not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume or job posting not found.")
+
+    try:
+        groq_service = GroqService()
+        graph_output = run_analysis_graph(db, groq_service, resume, job)
+        tailoring_completion = generate_tailored_resume(
+            groq_service,
+            resume,
+            job,
+            graph_output.get("chunks", []),
+            graph_output.get("scorecard", {}),
+            graph_output.get("structured_profile", {}),
+            graph_output.get("analysis", ""),
+        )
+        request_id = getattr(request.state, "request_id", "unknown")
+        log_llm_completion(
+            db,
+            request_id=request_id,
+            route_name="/jobs/{job_id}/tailor",
+            completion=tailoring_completion,
+            metadata={
+                "job_id": job_id,
+                "phase": "resume_tailoring",
+                "evidence_ids": [chunk.evidence_id for chunk in graph_output.get("chunks", [])],
+            },
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context=build_context(
+                request,
+                db,
+                selected_job_id=job_id,
+                scorecard=graph_output.get("scorecard"),
+                structured_profile=graph_output.get("structured_profile"),
+                tailored_resume=tailoring_completion.text,
             ),
         )
     except RuntimeError as exc:

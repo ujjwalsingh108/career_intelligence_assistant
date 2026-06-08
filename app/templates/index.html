@@ -25,7 +25,7 @@
     <section class="message error">{{ error }}</section>
     {% endif %}
 
-    {% if answer and not analysis %}
+    {% if answer and not analysis and not tailored_resume %}
     <section class="message success"><pre>{{ answer }}</pre></section>
     {% endif %}
 
@@ -63,9 +63,14 @@
                         <strong>{{ job.title }}</strong>
                         <p>{{ job.source_name }}</p>
                     </div>
-                    <form action="/jobs/{{ job.id }}/analyze" method="post">
-                        <button type="submit">Analyze</button>
-                    </form>
+                    <div class="job-actions">
+                        <form action="/jobs/{{ job.id }}/analyze" method="post">
+                            <button type="submit">Analyze</button>
+                        </form>
+                        <form action="/jobs/{{ job.id }}/tailor" method="post">
+                            <button type="submit" class="secondary-btn">Tailor Resume</button>
+                        </form>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -154,6 +159,16 @@
             <span>Skills, domains, years, must-haves</span>
         </div>
         <pre>{{ structured_profile }}</pre>
+    </section>
+    {% endif %}
+
+    {% if tailored_resume %}
+    <section class="panel output-panel">
+        <div class="section-header">
+            <h2>Tailored Resume Draft</h2>
+            {% if selected_job %}<span>{{ selected_job.title }}</span>{% endif %}
+        </div>
+        <pre>{{ tailored_resume }}</pre>
     </section>
     {% endif %}
 </main>

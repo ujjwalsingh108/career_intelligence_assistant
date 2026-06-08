@@ -23,6 +23,9 @@ The app is currently live at:
 	- domains
 	- must-have requirements
 - Deterministic fit scorecard with evidence chips and confidence
+- AI Resume Tailoring Generator:
+	- section-wise bullet rewrites for a selected role
+	- strict evidence grounding with explicit evidence IDs
 - Conversational Q&A tied to selected job context
 - Request-level observability:
 	- request ID
