@@ -148,6 +148,14 @@ Run the deterministic scorecard regression suite:
 python evals/run_regression.py
 ```
 
+Run continuous prompt evaluation for generated outputs (tailoring quality, hallucination rate, grounding coverage):
+
+```powershell
+python evals/run_prompt_eval.py
+```
+
+This writes a machine-readable report to `evals/prompt_eval_report.json`.
+
 ## Observability
 
 The app logs per-request LLM telemetry to `llm_request_logs`, including:

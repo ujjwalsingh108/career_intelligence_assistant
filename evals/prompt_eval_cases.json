@@ -1,0 +1,56 @@
+[
+  {
+    "id": "tailor-case-01",
+    "required_sections": [
+      "Professional Summary",
+      "Core Skills",
+      "Experience Bullet Rewrites",
+      "Project/Impact Highlights",
+      "Keyword Coverage Notes"
+    ],
+    "required_keywords": ["python", "fastapi", "postgresql", "docker"],
+    "forbidden_terms": ["google", "meta"],
+    "generated_output": "## Professional Summary\n- Backend engineer with Python API delivery experience [E1]\n- Built resilient FastAPI services with retrieval-backed workflows [E2]\n\n## Core Skills\n- Python, FastAPI, PostgreSQL, Docker, SQL [E1, E2]\n- Retrieval augmentation and prompt grounding [E3]\n\n## Experience Bullet Rewrites\n- Delivered API features with clear evidence-backed acceptance criteria [E1]\n- Improved query performance in PostgreSQL-backed workflows [E2]\n- Implemented chunking and retrieval improvements for relevance [E3]\n\n## Project/Impact Highlights\n- Built role-fit analysis workflow with scorecard interpretation [E2]\n- Added evidence IDs to generated tailoring drafts [E3]\n\n## Keyword Coverage Notes\n- Matched: Python, FastAPI, PostgreSQL\n- Missing: Docker\n",
+    "expected": {
+      "min_grounding_coverage": 0.8,
+      "max_hallucination_rate": 0.2,
+      "min_quality_score": 80
+    }
+  },
+  {
+    "id": "tailor-case-02",
+    "required_sections": [
+      "Professional Summary",
+      "Core Skills",
+      "Experience Bullet Rewrites",
+      "Project/Impact Highlights",
+      "Keyword Coverage Notes"
+    ],
+    "required_keywords": ["llm", "grounding", "evidence", "ats"],
+    "forbidden_terms": ["nasa", "openai"],
+    "generated_output": "## Professional Summary\n- Candidate shows evidence-backed role fit and clear ATS alignment [E1]\n\n## Core Skills\n- LLM prompting with grounding controls and evidence tagging [E2]\n- Retrieval design for context relevance and explainability [E3]\n\n## Experience Bullet Rewrites\n- Converted analysis signals into concise resume bullets with citations [E1]\n- Reduced ambiguity by forcing evidence tags in rewritten bullets [E2]\n- Added explicit missing-evidence language to avoid overclaiming [E3]\n\n## Project/Impact Highlights\n- Increased clarity of role targeting with keyword-oriented rewrites [E2]\n- Improved trust via evidence-first output formatting [E3]\n\n## Keyword Coverage Notes\n- Matched: llm, grounding, evidence [E2]\n- Missing: ats [E3]\n",
+    "expected": {
+      "min_grounding_coverage": 0.85,
+      "max_hallucination_rate": 0.15,
+      "min_quality_score": 82
+    }
+  },
+  {
+    "id": "tailor-case-03",
+    "required_sections": [
+      "Professional Summary",
+      "Core Skills",
+      "Experience Bullet Rewrites",
+      "Project/Impact Highlights",
+      "Keyword Coverage Notes"
+    ],
+    "required_keywords": ["sql", "api", "resume", "evidence"],
+    "forbidden_terms": ["tesla", "spacex"],
+    "generated_output": "## Professional Summary\n- Resume rewrite output is grounded to retrieved evidence snippets [E1]\n\n## Core Skills\n- SQL-backed retrieval, API design, and resume targeting [E2]\n\n## Experience Bullet Rewrites\n- Produced role-specific bullets that stay within known evidence [E1]\n- Preserved confidence boundaries through missing-evidence notes [E2]\n\n## Project/Impact Highlights\n- Improved transparency of generated advice with explicit references [E3]\n\n## Keyword Coverage Notes\n- Matched: sql, api, resume, evidence [E2]\n- Missing: none [E3]\n",
+    "expected": {
+      "min_grounding_coverage": 0.8,
+      "max_hallucination_rate": 0.2,
+      "min_quality_score": 78
+    }
+  }
+]
