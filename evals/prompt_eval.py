@@ -23,8 +23,12 @@ CITATION_PATTERN = re.compile(r"\[E\d+(?:\s*,\s*E\d+)*\]")
 
 
 def _extract_bullets(text: str) -> list[str]:
-    lines = [line.strip() for line in text.splitlines()]
-    return [line for line in lines if BULLET_PATTERN.match(line)]
+    bullet_lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if BULLET_PATTERN.match(stripped):
+            bullet_lines.append(stripped)
+    return bullet_lines
 
 
 def _normalize_set(items: list[str] | None) -> set[str]:
@@ -109,16 +113,16 @@ def evaluate_generated_output(case: dict) -> PromptEvalResult:
 
 
 def summarize_results(results: list[PromptEvalResult]) -> dict:
-    total = len(results)
+    case_count = len(results)
     passed = sum(1 for result in results if result.passed)
-    failed = total - passed
+    failed = case_count - passed
 
-    avg_grounding = round(sum(result.grounding_coverage for result in results) / total, 4) if total else 0.0
-    avg_hallucination = round(sum(result.hallucination_rate for result in results) / total, 4) if total else 0.0
-    avg_quality = round(sum(result.quality_score for result in results) / total, 2) if total else 0.0
+    avg_grounding = round(sum(result.grounding_coverage for result in results) / case_count, 4) if case_count else 0.0
+    avg_hallucination = round(sum(result.hallucination_rate for result in results) / case_count, 4) if case_count else 0.0
+    avg_quality = round(sum(result.quality_score for result in results) / case_count, 2) if case_count else 0.0
 
     return {
-        "total": total,
+        "total": case_count,
         "passed": passed,
         "failed": failed,
         "avg_grounding_coverage": avg_grounding,

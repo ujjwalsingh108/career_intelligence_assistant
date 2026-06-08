@@ -1,8 +1,8 @@
 # Career Intelligence Assistant
 
-This is a full-stack Python app that compares one resume against multiple job descriptions, answers role-fit questions, and gives evidence-backed suggestions.
+This is a full-stack Python app for comparing one resume against multiple job descriptions, answering role-fit questions, and generating grounded suggestions.
 
-The goal of this project was not to build a flashy demo that breaks easily, but a practical system I could deploy on a real server and iterate on quickly.
+The project is meant to be practical first: deployable, debuggable, and easy to iterate on.
 
 ## Live Deployment
 
@@ -15,25 +15,26 @@ The app is currently live at:
 - Resume upload: PDF, DOCX, TXT, MD
 - Job input: upload files and/or paste description text
 - RAG pipeline with PostgreSQL + pgvector
-- Hybrid retrieval (vector + lexical) with reranking
-- LangGraph orchestration for analysis flow
+- Hybrid retrieval with lexical matching and reranking
+- LangGraph-based analysis flow
 - Structured extraction for:
-	- skills
-	- years of experience
-	- domains
-	- must-have requirements
-- Deterministic fit scorecard with evidence chips and confidence
-- AI Resume Tailoring Generator:
-	- section-wise bullet rewrites for a selected role
-	- strict evidence grounding with explicit evidence IDs
-- Conversational Q&A tied to selected job context
+  - skills
+  - years of experience
+  - domains
+  - must-have requirements
+- Rule-based fit scorecard with evidence chips and confidence
+- Resume tailoring for a selected role:
+  - section-wise bullet rewrites
+  - evidence tags in each bullet
+- Conversational Q&A tied to a selected job
 - Request-level observability:
-	- request ID
-	- model name
-	- token usage
-	- latency
-	- estimated cost
-- Regression harness with 20 curated scorecard cases
+  - request ID
+  - model name
+  - token usage
+  - latency
+  - estimated cost
+- Regression harness with 20 scorecard cases
+- Prompt evaluation harness for tailoring quality, hallucination rate, and grounding coverage
 
 ## Tech Stack
 
@@ -42,7 +43,7 @@ The app is currently live at:
 - LLM provider: Groq
 - Analysis model: `llama-3.3-70b-versatile`
 - Chat model: `llama-3.1-8b-instant`
-- Embeddings: Hugging Face model `BAAI/bge-small-en-v1.5` via FastEmbed
+- Embeddings: `BAAI/bge-small-en-v1.5` via FastEmbed
 - Orchestration: LangGraph
 - Database: PostgreSQL 16 + pgvector
 - ORM: SQLAlchemy 2.x
@@ -53,23 +54,23 @@ The app is currently live at:
 
 ```mermaid
 flowchart LR
-		A[Resume Upload] --> B[Text Extraction]
-		C[Job Description Upload/Paste] --> B
-		B --> D[Chunking]
-		D --> E[HF Embeddings via FastEmbed]
-		E --> F[(PostgreSQL + pgvector)]
-		G[Analyze] --> H[LangGraph]
-		H --> I[Hybrid Retrieval + Rerank]
-		F --> I
-		I --> J[Structured Extraction]
-		J --> K[Deterministic Scorecard]
-		K --> L[Groq Report Generation]
-		L --> M[UI Response]
+        A[Resume Upload] --> B[Text Extraction]
+        C[Job Description Upload/Paste] --> B
+        B --> D[Chunking]
+        D --> E[HF Embeddings via FastEmbed]
+        E --> F[(PostgreSQL + pgvector)]
+        G[Analyze] --> H[LangGraph]
+        H --> I[Hybrid Retrieval + Rerank]
+        F --> I
+        I --> J[Structured Extraction]
+        J --> K[Scorecard]
+        K --> L[Groq Report Generation]
+        L --> M[UI Response]
 ```
 
 ## Local Setup
 
-### Option A: Python (dev mode)
+### Option A: Python
 
 ```powershell
 py -m venv .venv
@@ -107,18 +108,18 @@ Open http://localhost:18000
 
 ### LLMs
 
-I split model usage intentionally:
+I use two models on purpose:
 
 - `llama-3.3-70b-versatile` for deeper analysis reports
 - `llama-3.1-8b-instant` for faster interactive chat
 
-This keeps report quality high without making every interaction expensive.
+That keeps report quality high without making every interaction expensive.
 
 ### Embeddings
 
-I stayed with open-source Hugging Face embeddings (`BAAI/bge-small-en-v1.5`) through FastEmbed.
+The app uses open-source Hugging Face embeddings (`BAAI/bge-small-en-v1.5`) through FastEmbed.
 
-Why:
+Why this setup:
 
 - good quality for this use case
 - predictable cost profile
@@ -126,35 +127,36 @@ Why:
 
 ### Vector Store
 
-I used PostgreSQL + pgvector because it is straightforward to run on a droplet, and lets me keep relational data and vector search in one place.
+PostgreSQL + pgvector keeps relational data and vector search in one place and is easy to run on a small server.
 
 ### Orchestration
 
-I brought in LangGraph only for analysis flow, not the entire app, to keep complexity under control.
+LangGraph is used only for the analysis workflow, not the whole app, to keep complexity under control.
 
 ## Quality Controls
 
-- Unsupported/empty files are rejected
-- Empty file input parts are ignored when user submits pasted job text
-- Prompts enforce evidence-grounded responses
-- Output includes explicit missing-evidence behavior
-- Regression checks for scorecard behavior (20 cases)
+- Unsupported or empty files are rejected
+- Empty file input parts are ignored when users submit pasted job text
+- Prompts require evidence-grounded responses
+- Output handles missing evidence explicitly
+- Regression checks cover scorecard behavior
+- Prompt eval checks cover grounding coverage and hallucination rate
 
 ## Evaluation Harness
 
-Run the deterministic scorecard regression suite:
+Run the scorecard regression suite:
 
 ```powershell
 python evals/run_regression.py
 ```
 
-Run continuous prompt evaluation for generated outputs (tailoring quality, hallucination rate, grounding coverage):
+Run prompt evaluation for generated outputs:
 
 ```powershell
 python evals/run_prompt_eval.py
 ```
 
-This writes a machine-readable report to `evals/prompt_eval_report.json`.
+This writes a report to `evals/prompt_eval_report.json`.
 
 ## Observability
 
@@ -167,9 +169,9 @@ The app logs per-request LLM telemetry to `llm_request_logs`, including:
 - estimated USD cost
 - latency
 
-This made it much easier to debug model behavior and watch spend while iterating.
+That makes it easier to debug model behavior and monitor spend.
 
-## Production Notes (DigitalOcean)
+## Production Notes
 
 Current deployment includes:
 
@@ -178,7 +180,7 @@ Current deployment includes:
 - Let's Encrypt SSL
 - dedicated subdomain routing
 
-What I would add next for production-hardening:
+Likely next production steps:
 
 1. user auth and data isolation
 2. background jobs for heavy ingestion
@@ -188,20 +190,14 @@ What I would add next for production-hardening:
 
 ## Engineering Trade-offs
 
-What I optimized for:
+Optimized for:
 
 - clear architecture
 - deployability
 - explainable retrieval flow
 
-What I intentionally did not over-engineer yet:
+Not over-engineered yet:
 
 - multi-tenant RBAC
 - async task queue
 - exhaustive integration test matrix
-
-## AI Tooling: How I Used It
-
-I used AI coding tools for speed on boilerplate and implementation scaffolding, but validated all key design choices manually (retrieval design, deployment decisions, guardrails, and data flow).
-
-In short: AI helped me move faster, but it did not replace engineering judgment.

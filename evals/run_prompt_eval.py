@@ -16,9 +16,9 @@ def load_cases(path: Path) -> list[dict]:
 
 
 def to_payload(results) -> list[dict]:
-    payload: list[dict] = []
+    rows: list[dict] = []
     for result in results:
-        payload.append(
+        rows.append(
             {
                 "id": result.case_id,
                 "total_bullets": result.total_bullets,
@@ -32,7 +32,7 @@ def to_payload(results) -> list[dict]:
                 "reasons": result.reasons,
             }
         )
-    return payload
+    return rows
 
 
 def main() -> int:

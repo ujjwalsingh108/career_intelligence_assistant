@@ -22,7 +22,7 @@ def generate_tailored_resume(
     analysis: str,
 ) -> LLMCompletion:
     prompt = f"""
-You are rewriting resume content for a specific role with strict evidence grounding.
+Rewrite the resume for this role using only the evidence below.
 
 Resume filename: {resume.filename}
 Job title: {job.title}
@@ -37,7 +37,7 @@ Job description:
 Structured extraction JSON:
 {structured_profile}
 
-Deterministic scorecard JSON:
+Scorecard JSON:
 {scorecard}
 
 Analysis report:
@@ -54,11 +54,10 @@ Create a section-wise, ATS-aware tailored resume draft as markdown with these se
 4. Project/Impact Highlights (3-5 bullets)
 5. Keyword Coverage Notes (matched vs missing)
 
-Hard constraints:
-- Every bullet must be evidence-backed by at least one evidence ID, formatted like [E1].
+Constraints:
+- Every bullet must include at least one evidence ID, formatted like [E1].
 - Do not invent employers, timelines, technologies, or outcomes.
-- If evidence is missing for a useful bullet, add it under a "Cannot claim yet" subsection.
-- Keep language specific and outcome-oriented.
-- Prefer concise bullets and avoid generic claims.
+- If evidence is missing for a useful point, put it under a "Needs evidence" subsection.
+- Keep the language specific and concise.
 """.strip()
     return groq_service.complete(prompt=prompt, fast=False)
