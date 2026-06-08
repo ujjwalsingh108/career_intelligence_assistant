@@ -10,7 +10,7 @@ The app is currently live at:
 
 - https://career.insurewise.sbs
 
-## What Is Implemented Today
+## What Is Implemented
 
 - Resume upload: PDF, DOCX, TXT, MD
 - Job input: upload files and/or paste description text
